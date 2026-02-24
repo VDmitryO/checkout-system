@@ -55,8 +55,8 @@ defmodule Checkout do
 
       iex> co = Checkout.new()
       iex> co = Checkout.scan(co, "GR1")
-      iex> co.items
-      ["GR1"]
+      iex> length(co.items)
+      1
 
       iex> co = Checkout.new()
       iex> Checkout.scan(co, "UNKNOWN")

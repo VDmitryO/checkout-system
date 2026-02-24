@@ -14,7 +14,9 @@ defmodule CheckoutTest do
     test "scans a valid product and returns updated cart" do
       co = Checkout.new()
       co = Checkout.scan(co, "GR1")
-      assert co.items == ["GR1"]
+      assert length(co.items) == 1
+      assert hd(co.items).product.code == "GR1"
+      assert hd(co.items).quantity == 1
     end
 
     test "scans multiple products in order" do
@@ -24,7 +26,8 @@ defmodule CheckoutTest do
         |> Checkout.scan("SR1")
         |> Checkout.scan("CF1")
 
-      assert co.items == ["GR1", "SR1", "CF1"]
+      assert length(co.items) == 3
+      assert Enum.map(co.items, & &1.product.code) == ["GR1", "SR1", "CF1"]
     end
 
     test "allows scanning the same product multiple times" do
@@ -33,7 +36,8 @@ defmodule CheckoutTest do
         |> Checkout.scan("GR1")
         |> Checkout.scan("GR1")
 
-      assert co.items == ["GR1", "GR1"]
+      assert length(co.items) == 1
+      assert hd(co.items).quantity == 2
     end
 
     test "raises ArgumentError for unknown product code" do

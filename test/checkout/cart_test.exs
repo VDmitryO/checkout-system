@@ -1,7 +1,7 @@
 defmodule Checkout.CartTest do
   use ExUnit.Case, async: true
 
-  alias Checkout.Cart
+  alias Checkout.{Cart, LineItem, Product}
 
   describe "new/0" do
     test "creates an empty cart" do
@@ -11,25 +11,48 @@ defmodule Checkout.CartTest do
   end
 
   describe "add_item/2" do
-    test "adds a valid product code to the cart" do
+    test "adds a valid product as a new LineItem with quantity 1" do
       cart = Cart.new()
       assert {:ok, updated_cart} = Cart.add_item(cart, "GR1")
-      assert updated_cart.items == ["GR1"]
+      assert [%LineItem{product: %Product{code: "GR1"}, quantity: 1}] = updated_cart.items
     end
 
-    test "adds multiple items in order" do
+    test "adds multiple different products as separate LineItems" do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "SR1")
       {:ok, cart} = Cart.add_item(cart, "CF1")
-      assert cart.items == ["GR1", "SR1", "CF1"]
+      assert length(cart.items) == 3
+      codes = Enum.map(cart.items, & &1.product.code)
+      assert codes == ["GR1", "SR1", "CF1"]
     end
 
-    test "allows duplicate items" do
+    test "increments quantity when the same product is added twice" do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
-      assert cart.items == ["GR1", "GR1"]
+      assert length(cart.items) == 1
+      assert hd(cart.items).quantity == 2
+    end
+
+    test "increments quantity correctly for multiple duplicates" do
+      cart = Cart.new()
+      {:ok, cart} = Cart.add_item(cart, "GR1")
+      {:ok, cart} = Cart.add_item(cart, "GR1")
+      {:ok, cart} = Cart.add_item(cart, "GR1")
+      assert hd(cart.items).quantity == 3
+    end
+
+    test "keeps separate LineItems for different products even with duplicates" do
+      cart = Cart.new()
+      {:ok, cart} = Cart.add_item(cart, "GR1")
+      {:ok, cart} = Cart.add_item(cart, "SR1")
+      {:ok, cart} = Cart.add_item(cart, "GR1")
+      assert length(cart.items) == 2
+      gr1 = Enum.find(cart.items, &(&1.product.code == "GR1"))
+      sr1 = Enum.find(cart.items, &(&1.product.code == "SR1"))
+      assert gr1.quantity == 2
+      assert sr1.quantity == 1
     end
 
     test "returns error for unknown product code" do
@@ -41,7 +64,8 @@ defmodule Checkout.CartTest do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:error, :not_found} = Cart.add_item(cart, "UNKNOWN")
-      assert cart.items == ["GR1"]
+      assert length(cart.items) == 1
+      assert hd(cart.items).product.code == "GR1"
     end
   end
 
@@ -69,7 +93,7 @@ defmodule Checkout.CartTest do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
-      # 311 + 311 = 622
+      # 311 * 2 = 622
       assert {:ok, 622} = Cart.total(cart)
     end
 

@@ -1,15 +1,15 @@
 defmodule Checkout.Cart do
   @moduledoc """
-  Represents a shopping cart containing a list of scanned product codes.
+  Represents a shopping cart containing a list of `Checkout.LineItem` structs.
 
+  Each `LineItem` groups a product with the quantity scanned so far.
   The cart is a plain struct with pure functional operations — no side effects.
-  Items are stored as a list of product codes in the order they were scanned.
   """
 
-  alias Checkout.Product
+  alias Checkout.{LineItem, Product}
 
   @type t :: %__MODULE__{
-          items: [String.t()]
+          items: [LineItem.t()]
         }
 
   defstruct items: []
@@ -26,7 +26,10 @@ defmodule Checkout.Cart do
   def new, do: %__MODULE__{}
 
   @doc """
-  Adds a product code to the cart.
+  Adds a product to the cart by its code.
+
+  If a `LineItem` for that product already exists, its quantity is incremented.
+  Otherwise a new `LineItem` with `quantity: 1` is appended.
 
   Returns `{:ok, updated_cart}` if the product exists, or `{:error, :not_found}`
   if the product code is not in the catalog.
@@ -35,8 +38,16 @@ defmodule Checkout.Cart do
 
       iex> cart = Checkout.Cart.new()
       iex> {:ok, cart} = Checkout.Cart.add_item(cart, "GR1")
-      iex> cart.items
-      ["GR1"]
+      iex> length(cart.items)
+      1
+      iex> hd(cart.items).quantity
+      1
+
+      iex> cart = Checkout.Cart.new()
+      iex> {:ok, cart} = Checkout.Cart.add_item(cart, "GR1")
+      iex> {:ok, cart} = Checkout.Cart.add_item(cart, "GR1")
+      iex> hd(cart.items).quantity
+      2
 
       iex> cart = Checkout.Cart.new()
       iex> Checkout.Cart.add_item(cart, "UNKNOWN")
@@ -45,8 +56,9 @@ defmodule Checkout.Cart do
   @spec add_item(t(), String.t()) :: {:ok, t()} | {:error, :not_found}
   def add_item(%__MODULE__{} = cart, code) when is_binary(code) do
     case Product.fetch(code) do
-      {:ok, _product} ->
-        {:ok, %__MODULE__{cart | items: cart.items ++ [code]}}
+      {:ok, product} ->
+        updated_items = upsert_line_item(cart.items, product)
+        {:ok, %__MODULE__{cart | items: updated_items}}
 
       {:error, :not_found} ->
         {:error, :not_found}
@@ -68,14 +80,21 @@ defmodule Checkout.Cart do
   """
   @spec total(t()) :: {:ok, non_neg_integer()}
   def total(%__MODULE__{items: items}) do
-    total_cents =
-      Enum.reduce(items, 0, fn code, acc ->
-        case Product.fetch(code) do
-          {:ok, product} -> acc + product.price
-          {:error, :not_found} -> acc
-        end
-      end)
-
+    total_cents = Enum.reduce(items, 0, fn line_item, acc -> acc + LineItem.subtotal(line_item) end)
     {:ok, total_cents}
+  end
+
+  # Finds the existing LineItem for the product and increments its quantity,
+  # or appends a new LineItem with quantity 1.
+  defp upsert_line_item(items, product) do
+    case Enum.find_index(items, fn %LineItem{product: p} -> p.code == product.code end) do
+      nil ->
+        items ++ [%LineItem{product: product, quantity: 1}]
+
+      index ->
+        List.update_at(items, index, fn %LineItem{} = line_item ->
+          %LineItem{line_item | quantity: line_item.quantity + 1}
+        end)
+    end
   end
 end
