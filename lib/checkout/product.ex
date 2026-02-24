@@ -54,21 +54,4 @@ defmodule Checkout.Product do
     }
   end
 
-  @doc """
-  Formats a price in cents to a human-readable string.
-
-  ## Examples
-
-      iex> Checkout.Product.format_price(311)
-      "£3.11"
-
-      iex> Checkout.Product.format_price(500)
-      "£5.00"
-  """
-  @spec format_price(non_neg_integer()) :: String.t()
-  def format_price(cents) when is_integer(cents) and cents >= 0 do
-    pounds = div(cents, 100)
-    pence = rem(cents, 100)
-    "£#{pounds}.#{String.pad_leading(Integer.to_string(pence), 2, "0")}"
-  end
 end

@@ -29,7 +29,7 @@ defmodule Checkout do
   """
 
   alias Checkout.Cart
-  alias Checkout.Product
+  alias Checkout.Formatter
 
   @type t :: Cart.t()
 
@@ -100,6 +100,6 @@ defmodule Checkout do
   """
   @spec format_total(non_neg_integer()) :: String.t()
   def format_total(cents) when is_integer(cents) and cents >= 0 do
-    Product.format_price(cents)
+    Formatter.format_price(cents)
   end
 end
