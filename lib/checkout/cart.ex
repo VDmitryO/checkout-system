@@ -1,29 +1,32 @@
 defmodule Checkout.Cart do
   @moduledoc """
-  Represents a shopping cart containing a list of `Checkout.LineItem` structs.
+  Represents a shopping cart containing a list of `Checkout.LineItem` structs
+  and a `Checkout.PricingRules` collection.
 
   Each `LineItem` groups a product with the quantity scanned so far.
   The cart is a plain struct with pure functional operations — no side effects.
   """
 
-  alias Checkout.{LineItem, Product}
+  alias Checkout.{LineItem, PricingRules, Product}
 
   @type t :: %__MODULE__{
-          items: [LineItem.t()]
+          items: [LineItem.t()],
+          pricing_rules: PricingRules.t()
         }
 
-  defstruct items: []
+  defstruct items: [], pricing_rules: %PricingRules{}
 
   @doc """
-  Creates a new empty cart.
-
-  ## Examples
-
-      iex> Checkout.Cart.new()
-      %Checkout.Cart{items: []}
+  Creates a new empty cart with no pricing rules.
   """
   @spec new() :: t()
   def new, do: %__MODULE__{}
+
+  @doc """
+  Creates a new empty cart with the given `PricingRules` struct.
+  """
+  @spec new(PricingRules.t()) :: t()
+  def new(%PricingRules{} = pricing_rules), do: %__MODULE__{pricing_rules: pricing_rules}
 
   @doc """
   Adds a product to the cart by its code.
@@ -68,6 +71,10 @@ defmodule Checkout.Cart do
   @doc """
   Computes the total price of all items in the cart, in cents.
 
+  For each line item, the matching pricing rule (if any) is applied via
+  `Checkout.PricingRules.apply_to/2`. If no rule matches, the default subtotal
+  (`quantity * unit_price`) is used.
+
   Returns `{:ok, total_cents}` where `total_cents` is a non-negative integer.
 
   ## Examples
@@ -79,8 +86,9 @@ defmodule Checkout.Cart do
       {:ok, 811}
   """
   @spec total(t()) :: {:ok, non_neg_integer()}
-  def total(%__MODULE__{items: items}) do
-    total_cents = Enum.reduce(items, 0, fn line_item, acc -> acc + LineItem.subtotal(line_item) end)
+  def total(%__MODULE__{items: items, pricing_rules: pricing_rules}) do
+    total_cents = Enum.sum_by(items, &PricingRules.apply_to(pricing_rules, &1))
+
     {:ok, total_cents}
   end
 

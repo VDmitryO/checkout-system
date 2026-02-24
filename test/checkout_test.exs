@@ -3,10 +3,30 @@ defmodule CheckoutTest do
 
   doctest Checkout
 
+  alias Checkout.PricingRules
+
   describe "new/0" do
     test "creates a new empty checkout" do
       co = Checkout.new()
       assert co.items == []
+      assert co.pricing_rules == %PricingRules{rules: []}
+    end
+  end
+
+  describe "new/1" do
+    test "creates a checkout with the given pricing rules" do
+      rule_tuples = [{PricingRule.BuyOneGetOneFree, "GR1", []}]
+      {:ok, rules} = PricingRules.new(rule_tuples)
+      co = Checkout.new(rules)
+      assert co.items == []
+      assert co.pricing_rules == %PricingRules{rules: rule_tuples}
+    end
+
+    test "creates a checkout with an empty pricing rules struct" do
+      {:ok, rules} = PricingRules.new([])
+      co = Checkout.new(rules)
+      assert co.items == []
+      assert co.pricing_rules == %PricingRules{rules: []}
     end
   end
 

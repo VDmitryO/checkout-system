@@ -1,12 +1,28 @@
 defmodule Checkout.CartTest do
   use ExUnit.Case, async: true
 
-  alias Checkout.{Cart, LineItem, Product}
+  alias Checkout.{Cart, LineItem, PricingRule, PricingRules, Product}
 
   describe "new/0" do
-    test "creates an empty cart" do
+    test "creates an empty cart with no items and empty pricing rules" do
       cart = Cart.new()
       assert cart.items == []
+      assert cart.pricing_rules == %PricingRules{rules: []}
+    end
+  end
+
+  describe "new/1" do
+    test "creates an empty cart with the given PricingRules struct" do
+      {:ok, rules} = PricingRules.new([])
+      cart = Cart.new(rules)
+      assert cart.items == []
+      assert cart.pricing_rules == rules
+    end
+
+    test "stores the PricingRules struct on the cart" do
+      {:ok, rules} = PricingRules.new([{PricingRule.BuyOneGetOneFree, "GR1", []}])
+      cart = Cart.new(rules)
+      assert cart.pricing_rules == rules
     end
   end
 

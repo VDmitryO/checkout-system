@@ -2,7 +2,7 @@ defmodule Checkout do
   @moduledoc """
   A cashier service for managing a shopping cart and computing the final total.
 
-  ## Usage
+  ## Usage without pricing rules
 
       iex> co = Checkout.new()
       iex> co = Checkout.scan(co, "GR1")
@@ -30,11 +30,12 @@ defmodule Checkout do
 
   alias Checkout.Cart
   alias Checkout.Formatter
+  alias Checkout.PricingRules
 
   @type t :: Cart.t()
 
   @doc """
-  Creates a new empty checkout (cart).
+  Creates a new empty checkout (cart) with no pricing rules.
 
   ## Examples
 
@@ -44,6 +45,21 @@ defmodule Checkout do
   """
   @spec new() :: t()
   def new, do: Cart.new()
+
+  @doc """
+  Creates a new checkout (cart) with the given `PricingRules` struct.
+
+  ## Examples
+
+      iex> {:ok, rules} = Checkout.PricingRules.new([])
+      iex> co = Checkout.new(rules)
+      iex> co.items
+      []
+      iex> co.pricing_rules
+      %Checkout.PricingRules{rules: []}
+  """
+  @spec new(PricingRules.t()) :: t()
+  def new(%PricingRules{} = pricing_rules), do: Cart.new(pricing_rules)
 
   @doc """
   Scans a product by its code and adds it to the cart.
