@@ -60,7 +60,7 @@ defmodule Checkout.Cart do
   def add_item(%__MODULE__{} = cart, code) when is_binary(code) do
     with {:ok, product} <- Product.fetch(code) do
       updated_items =
-        Map.update(cart.items, code, %LineItem{product: product, quantity: 1}, fn item ->
+        Map.update(cart.items, code, %LineItem{product: product, quantity: 1}, fn %LineItem{} = item ->
           %LineItem{item | quantity: item.quantity + 1}
         end)
 
