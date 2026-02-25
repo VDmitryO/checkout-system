@@ -6,7 +6,7 @@ defmodule Checkout.CartTest do
   describe "new/0" do
     test "creates an empty cart with no items and empty pricing rules" do
       cart = Cart.new()
-      assert cart.items == []
+      assert cart.items == %{}
       assert cart.pricing_rules == %PricingRules{rules: []}
     end
   end
@@ -15,7 +15,7 @@ defmodule Checkout.CartTest do
     test "creates an empty cart with the given PricingRules struct" do
       {:ok, rules} = PricingRules.new([])
       cart = Cart.new(rules)
-      assert cart.items == []
+      assert cart.items == %{}
       assert cart.pricing_rules == rules
     end
 
@@ -30,7 +30,7 @@ defmodule Checkout.CartTest do
     test "adds a valid product as a new LineItem with quantity 1" do
       cart = Cart.new()
       assert {:ok, updated_cart} = Cart.add_item(cart, "GR1")
-      assert [%LineItem{product: %Product{code: "GR1"}, quantity: 1}] = updated_cart.items
+      assert %{"GR1" => %LineItem{product: %Product{code: "GR1"}, quantity: 1}} = updated_cart.items
     end
 
     test "adds multiple different products as separate LineItems" do
@@ -38,17 +38,17 @@ defmodule Checkout.CartTest do
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "SR1")
       {:ok, cart} = Cart.add_item(cart, "CF1")
-      assert length(cart.items) == 3
-      codes = Enum.map(cart.items, & &1.product.code)
-      assert codes == ["GR1", "SR1", "CF1"]
+      assert map_size(cart.items) == 3
+      codes = cart.items |> Map.keys() |> Enum.sort()
+      assert codes == ["CF1", "GR1", "SR1"]
     end
 
     test "increments quantity when the same product is added twice" do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
-      assert length(cart.items) == 1
-      assert hd(cart.items).quantity == 2
+      assert map_size(cart.items) == 1
+      assert cart.items["GR1"].quantity == 2
     end
 
     test "increments quantity correctly for multiple duplicates" do
@@ -56,7 +56,7 @@ defmodule Checkout.CartTest do
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
-      assert hd(cart.items).quantity == 3
+      assert cart.items["GR1"].quantity == 3
     end
 
     test "keeps separate LineItems for different products even with duplicates" do
@@ -64,11 +64,9 @@ defmodule Checkout.CartTest do
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:ok, cart} = Cart.add_item(cart, "SR1")
       {:ok, cart} = Cart.add_item(cart, "GR1")
-      assert length(cart.items) == 2
-      gr1 = Enum.find(cart.items, &(&1.product.code == "GR1"))
-      sr1 = Enum.find(cart.items, &(&1.product.code == "SR1"))
-      assert gr1.quantity == 2
-      assert sr1.quantity == 1
+      assert map_size(cart.items) == 2
+      assert cart.items["GR1"].quantity == 2
+      assert cart.items["SR1"].quantity == 1
     end
 
     test "returns error for unknown product code" do
@@ -80,8 +78,8 @@ defmodule Checkout.CartTest do
       cart = Cart.new()
       {:ok, cart} = Cart.add_item(cart, "GR1")
       {:error, :not_found} = Cart.add_item(cart, "UNKNOWN")
-      assert length(cart.items) == 1
-      assert hd(cart.items).product.code == "GR1"
+      assert map_size(cart.items) == 1
+      assert cart.items["GR1"].product.code == "GR1"
     end
   end
 

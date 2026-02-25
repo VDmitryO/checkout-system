@@ -41,7 +41,7 @@ defmodule Checkout do
 
       iex> co = Checkout.new()
       iex> co.items
-      []
+      %{}
   """
   @spec new() :: t()
   def new, do: Cart.new()
@@ -54,7 +54,7 @@ defmodule Checkout do
       iex> {:ok, rules} = Checkout.PricingRules.new([])
       iex> co = Checkout.new(rules)
       iex> co.items
-      []
+      %{}
       iex> co.pricing_rules
       %Checkout.PricingRules{rules: []}
   """
@@ -71,7 +71,7 @@ defmodule Checkout do
 
       iex> co = Checkout.new()
       iex> co = Checkout.scan(co, "GR1")
-      iex> length(co.items)
+      iex> map_size(co.items)
       1
 
       iex> co = Checkout.new()

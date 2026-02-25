@@ -8,7 +8,7 @@ defmodule CheckoutTest do
   describe "new/0" do
     test "creates a new empty checkout" do
       co = Checkout.new()
-      assert co.items == []
+      assert co.items == %{}
       assert co.pricing_rules == %PricingRules{rules: []}
     end
   end
@@ -18,14 +18,14 @@ defmodule CheckoutTest do
       rule_tuples = [{PricingRule.BuyOneGetOneFree, "GR1", []}]
       {:ok, rules} = PricingRules.new(rule_tuples)
       co = Checkout.new(rules)
-      assert co.items == []
+      assert co.items == %{}
       assert co.pricing_rules == %PricingRules{rules: rule_tuples}
     end
 
     test "creates a checkout with an empty pricing rules struct" do
       {:ok, rules} = PricingRules.new([])
       co = Checkout.new(rules)
-      assert co.items == []
+      assert co.items == %{}
       assert co.pricing_rules == %PricingRules{rules: []}
     end
   end
@@ -34,9 +34,9 @@ defmodule CheckoutTest do
     test "scans a valid product and returns updated cart" do
       co = Checkout.new()
       co = Checkout.scan(co, "GR1")
-      assert length(co.items) == 1
-      assert hd(co.items).product.code == "GR1"
-      assert hd(co.items).quantity == 1
+      assert map_size(co.items) == 1
+      assert co.items["GR1"].product.code == "GR1"
+      assert co.items["GR1"].quantity == 1
     end
 
     test "scans multiple products in order" do
@@ -46,8 +46,10 @@ defmodule CheckoutTest do
         |> Checkout.scan("SR1")
         |> Checkout.scan("CF1")
 
-      assert length(co.items) == 3
-      assert Enum.map(co.items, & &1.product.code) == ["GR1", "SR1", "CF1"]
+      assert map_size(co.items) == 3
+      assert Map.has_key?(co.items, "GR1")
+      assert Map.has_key?(co.items, "SR1")
+      assert Map.has_key?(co.items, "CF1")
     end
 
     test "allows scanning the same product multiple times" do
@@ -56,8 +58,8 @@ defmodule CheckoutTest do
         |> Checkout.scan("GR1")
         |> Checkout.scan("GR1")
 
-      assert length(co.items) == 1
-      assert hd(co.items).quantity == 2
+      assert map_size(co.items) == 1
+      assert co.items["GR1"].quantity == 2
     end
 
     test "raises ArgumentError for unknown product code" do
