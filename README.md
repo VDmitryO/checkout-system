@@ -1,21 +1,42 @@
 # Checkout
 
-**TODO: Add description**
+A checkout system with configurable pricing rules. Supports buy-one-get-one-free, bulk discounts, and bulk price multipliers.
 
-## Installation
+## Products
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `checkout` to your list of dependencies in `mix.exs`:
+| Code | Name         | Price  |
+|------|--------------|--------|
+| GR1  | Green tea    | £3.11  |
+| SR1  | Strawberries | £5.00  |
+| CF1  | Coffee       | £11.23 |
+
+## Usage
 
 ```elixir
-def deps do
-  [
-    {:checkout, "~> 0.1.0"}
-  ]
-end
+# Define pricing rules
+{:ok, rules} =
+  Checkout.PricingRules.new([
+    {Checkout.PricingRule.BuyOneGetOneFree, "GR1", []},
+    {Checkout.PricingRule.BulkDiscount, "SR1", [min_qty: 3, discount_price: 450]},
+    {Checkout.PricingRule.BulkPriceMultiplier, "CF1", [min_qty: 3, multiplier: 2 / 3]}
+  ])
+
+# Create checkout, scan items, get total
+co =
+  Checkout.new(rules)
+  |> Checkout.scan("GR1")
+  |> Checkout.scan("SR1")
+  |> Checkout.scan("GR1")
+  |> Checkout.scan("GR1")
+  |> Checkout.scan("CF1")
+
+{:ok, total} = Checkout.total(co)
+Checkout.format_total(total)
+# => "£22.45"
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/checkout>.
+## Running Tests
 
+```bash
+mix test
+```
