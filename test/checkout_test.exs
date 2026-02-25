@@ -3,7 +3,7 @@ defmodule CheckoutTest do
 
   doctest Checkout
 
-  alias Checkout.PricingRules
+  alias Checkout.{PricingRule, PricingRules}
 
   describe "new/0" do
     test "creates a new empty checkout" do
@@ -127,57 +127,69 @@ defmodule CheckoutTest do
     end
   end
 
-  describe "end-to-end scenarios" do
-    test "basket: GR1, SR1, GR1, GR1, CF1" do
-      co =
-        Checkout.new()
-        |> Checkout.scan("GR1")
-        |> Checkout.scan("SR1")
-        |> Checkout.scan("GR1")
-        |> Checkout.scan("GR1")
-        |> Checkout.scan("CF1")
+  describe "end-to-end scenarios with pricing rules" do
+    setup do
+      {:ok, rules} =
+        PricingRules.new([
+          {PricingRule.BuyOneGetOneFree, "GR1", []},
+          {PricingRule.BulkDiscount, "SR1", [min_qty: 3, discount_price: 450]},
+          {PricingRule.BulkPriceMultiplier, "CF1", [min_qty: 3, multiplier: 2 / 3]}
+        ])
 
-      # 311 + 500 + 311 + 311 + 1123 = 2556
-      assert {:ok, 2556} = Checkout.total(co)
-      assert Checkout.format_total(2556) == "£25.56"
+      %{co: Checkout.new(rules)}
     end
 
-    test "basket: GR1, GR1" do
+    test "basket: GR1, SR1, GR1, GR1, CF1 — mixed rules", %{co: co} do
       co =
-        Checkout.new()
+        co
+        |> Checkout.scan("GR1")
+        |> Checkout.scan("SR1")
         |> Checkout.scan("GR1")
         |> Checkout.scan("GR1")
+        |> Checkout.scan("CF1")
 
-      # 311 + 311 = 622
-      assert {:ok, 622} = Checkout.total(co)
-      assert Checkout.format_total(622) == "£6.22"
+      # 3 GR1 with BOGOF → pay for 2 → 622; 1 SR1 → 500; 1 CF1 → 1123 → total 2245
+      assert {:ok, 2245} = Checkout.total(co)
+      assert Checkout.format_total(2245) == "£22.45"
     end
 
-    test "basket: SR1, SR1, GR1, SR1" do
+    test "basket: GR1, GR1 — BOGOF on green tea", %{co: co} do
       co =
-        Checkout.new()
-        |> Checkout.scan("SR1")
-        |> Checkout.scan("SR1")
+        co
         |> Checkout.scan("GR1")
-        |> Checkout.scan("SR1")
+        |> Checkout.scan("GR1")
 
-      # 500 + 500 + 311 + 500 = 1811
-      assert {:ok, 1811} = Checkout.total(co)
-      assert Checkout.format_total(1811) == "£18.11"
+      # 2 GR1 with BOGOF → pay for 1 → 311
+      assert {:ok, 311} = Checkout.total(co)
+      assert Checkout.format_total(311) == "£3.11"
     end
 
-    test "basket: GR1, CF1, SR1, CF1, CF1" do
+    test "basket: SR1, SR1, GR1, SR1 — bulk discount on strawberries", %{co: co} do
       co =
-        Checkout.new()
+        co
+        |> Checkout.scan("SR1")
+        |> Checkout.scan("SR1")
+        |> Checkout.scan("GR1")
+        |> Checkout.scan("SR1")
+
+      # 3 SR1 at £4.50 + 1 GR1 → 1350 + 311 = 1661
+      assert {:ok, 1661} = Checkout.total(co)
+      assert Checkout.format_total(1661) == "£16.61"
+    end
+
+    test "basket: GR1, CF1, SR1, CF1, CF1 — multiplier on coffee", %{co: co} do
+      co =
+        co
         |> Checkout.scan("GR1")
         |> Checkout.scan("CF1")
         |> Checkout.scan("SR1")
         |> Checkout.scan("CF1")
         |> Checkout.scan("CF1")
 
-      # 311 + 1123 + 500 + 1123 + 1123 = 4180
-      assert {:ok, 4180} = Checkout.total(co)
-      assert Checkout.format_total(4180) == "£41.80"
+      # 1 GR1 + 3 CF1 at 2/3 price + 1 SR1
+      # 311 + round(3 * 1123 * (2/3)) + 500 = 311 + 2246 + 500 = 3057
+      assert {:ok, 3057} = Checkout.total(co)
+      assert Checkout.format_total(3057) == "£30.57"
     end
   end
 end
